@@ -4,7 +4,53 @@ use warnings;
 use Test::More;
 use Test::TCP;
 
+use Plack::Util;
+
 use Plack::Client;
+
+sub full_body {
+    my ($body) = @_;
+
+    return $body unless ref($body);
+
+    my $ret = '';
+    Plack::Util::foreach($body, sub { $ret .= $_[0] });
+    return $ret;
+}
+
+sub check_headers {
+    my ($got, $expected) = @_;
+    local $Test::Builder::Level = $Test::Builder::Level + 1;
+
+    isa_ok($got, 'HTTP::Headers');
+
+    if (ref($expected) eq 'ARRAY') {
+        $expected = HTTP::Headers->new(@$expected);
+    }
+    elsif (ref($expected) eq 'HASH') {
+        $expected = HTTP::Headers->new(%$expected);
+    }
+    isa_ok($expected, 'HTTP::Headers');
+
+    my @expected_keys = $expected->header_field_names;
+    my @got_keys = $got->header_field_names;
+
+    my %default_headers = map { $_ => 1 } qw(
+        Date Server Content-Length Client-Date Client-Peer Client-Response-Num
+    );
+    my %expected_exists = map { $_ => 1 } @expected_keys;
+
+    for my $header (@expected_keys) {
+        is($got->header($header), $expected->header($header),
+           "$header header is the same");
+    }
+
+    for my $header (@got_keys) {
+        next if $default_headers{$header};
+        next if $expected_exists{$header};
+        fail("got extra header $header");
+    }
+}
 
 test_tcp(
     client => sub {
@@ -13,22 +59,22 @@ test_tcp(
         my $client = Plack::Client->new;
         isa_ok($client, 'Plack::Client');
 
+        my $base_url = 'http://localhost:' . $port;
+
         {
-            my $res = $client->get('http://localhost:5000/');
+            my $res = $client->get($base_url . '/');
             isa_ok($res, 'Plack::Response');
             is($res->status, 200, "right status");
-            is_deeply($res->headers, ["Content-Type" => "text/plain"],
-                    "right headers");
-            is($res->body, '/', "right body");
+            check_headers($res->headers, ["Content-Type" => "text/plain"]);
+            is(full_body($res->body), '/', "right body");
         }
 
         {
-            my $res = $client->get('http://localhost:5000/foo');
+            my $res = $client->get($base_url . '/foo');
             isa_ok($res, 'Plack::Response');
             is($res->status, 200, "right status");
-            is_deeply($res->headers, ["Content-Type" => "text/plain"],
-                    "right headers");
-            is($res->body, '/foo', "right body");
+            check_headers($res->headers, ["Content-Type" => "text/plain"]);
+            is(full_body($res->body), '/foo', "right body");
         }
     },
     server => sub {
@@ -57,18 +103,16 @@ test_tcp(
         my $res = $client->get('psgi://foo/');
         isa_ok($res, 'Plack::Response');
         is($res->status, 200, "right status");
-        is_deeply($res->headers, ["Content-Type" => "text/plain"],
-                  "right headers");
-        is($res->body, '/', "right body");
+        check_headers($res->headers, ["Content-Type" => "text/plain"]);
+        is(full_body($res->body), '/', "right body");
     }
 
     {
         my $res = $client->get('psgi://foo/foo');
         isa_ok($res, 'Plack::Response');
         is($res->status, 200, "right status");
-        is_deeply($res->headers, ["Content-Type" => "text/plain"],
-                  "right headers");
-        is($res->body, 'oof/', "right body");
+        check_headers($res->headers, ["Content-Type" => "text/plain"]);
+        is(full_body($res->body), 'oof/', "right body");
     }
 }
 
