@@ -27,7 +27,7 @@ sub check_headers {
     my ($got, $expected) = @_;
     local $Test::Builder::Level = $Test::Builder::Level + 1;
 
-    isa_ok($got, 'HTTP::Headers');
+    isa_ok($got, 'HTTP::Headers') || return;
 
     if (ref($expected) eq 'ARRAY') {
         $expected = HTTP::Headers->new(@$expected);
@@ -35,7 +35,7 @@ sub check_headers {
     elsif (ref($expected) eq 'HASH') {
         $expected = HTTP::Headers->new(%$expected);
     }
-    isa_ok($expected, 'HTTP::Headers');
+    isa_ok($expected, 'HTTP::Headers') || return;
 
     my @expected_keys = $expected->header_field_names;
     my @got_keys = $got->header_field_names;
@@ -43,18 +43,34 @@ sub check_headers {
     my %default_headers = map { $_ => 1 } qw(
         Date Server Content-Length Client-Date Client-Peer Client-Response-Num
     );
+    my %got_exists      = map { $_ => 1 } @got_keys;
     my %expected_exists = map { $_ => 1 } @expected_keys;
 
+    my $success = 1;
     for my $header (@expected_keys) {
+        ok($got_exists{$header}, "$header exists")
+            || do { $success = 0; next };
         is($got->header($header), $expected->header($header),
-           "$header header is the same");
+           "$header header is the same")
+            || do { $success = 0; next };
     }
 
     for my $header (@got_keys) {
         next if $default_headers{$header};
         next if $expected_exists{$header};
         fail("got extra header $header");
+        $success = 0;
     }
+
+    if (!$success) {
+        diag("####################");
+        diag("Got:\n" . $got->as_string);
+        diag("####################");
+        diag("Expected:\n" . $expected->as_string);
+        diag("####################");
+    }
+
+    $success;
 }
 
 sub response_is {
