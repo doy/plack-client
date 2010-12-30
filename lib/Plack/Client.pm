@@ -44,6 +44,8 @@ sub request {
     if ($scheme eq 'psgi') {
         my ($app_key, $path) = $self->_parse_request($req->uri->opaque);
 
+        $path = '/' unless length $path;
+
         # to_psgi doesn't like non-http uris
         $req->uri($path);
         my $env = $req->isa('HTTP::Request') ? $req->to_psgi : $req->env;
@@ -81,7 +83,7 @@ sub _req_from_psgi {
 sub _parse_request {
     my $self = shift;
     my ($req) = @_;
-    my ($app, $path) = $req =~ m+^//(.*?)(/.*)$+;
+    my ($app, $path) = $req =~ m{^//([^/]+)(.*)$};
     return ($app, $path);
 }
 
