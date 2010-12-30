@@ -52,6 +52,7 @@ sub request {
     die 'XXX' unless $app;
 
     my $env = $req->isa('HTTP::Request') ? $req->to_psgi : $req->env;
+    $env->{CONTENT_LENGTH} ||= length($req->content); # XXX: ???
     my $psgi_res = $app->($env);
     if (ref($psgi_res) eq 'CODE') {
         my $body = '';
