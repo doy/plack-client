@@ -4,7 +4,7 @@ use warnings;
 
 use HTTP::Message::PSGI;
 use HTTP::Request;
-use LWP::UserAgent;
+use Plack::App::Proxy;
 use Plack::Response;
 use Scalar::Util qw(blessed);
 
@@ -16,12 +16,10 @@ sub new {
 
     bless {
         apps => $params{apps},
-        ua   => exists $params{ua} ? $params{ua} : LWP::UserAgent->new,
     }, $class;
 }
 
 sub apps { shift->{apps} }
-sub ua   { shift->{ua}   }
 
 sub app_for {
     my $self = shift;
@@ -40,36 +38,35 @@ sub request {
 
     # both Plack::Request and HTTP::Request have a ->uri method
     my $scheme = $req->uri->scheme;
-    my $res;
+    my $app;
     if ($scheme eq 'psgi') {
-        my ($app_key, $path) = $self->_parse_request($req->uri->opaque);
-
-        $path = '/' unless length $path;
-
-        # to_psgi doesn't like non-http uris
-        $req->uri($path);
-        my $env = $req->isa('HTTP::Request') ? $req->to_psgi : $req->env;
-
-        my $app = $self->app_for($app_key);
-        die 'XXX' unless $app;
-        my $psgi_res = $app->($env);
-        die 'XXX' unless ref($psgi_res) eq 'ARRAY';
-        $res = Plack::Response->new(@$psgi_res);
+        $req->uri->path('/') unless length $req->uri->path;
+        $app = $self->app_for($req->uri->authority);
     }
     elsif ($scheme eq 'http' || $scheme eq 'https') {
-        $req = $self->_req_from_psgi($req)
-            if $req->isa('Plack::Request');
-
-        my $http_res = $self->ua->simple_request($req); # or just ->request?
-        $res = Plack::Response->new(
-            map { $http_res->$_ } qw(code headers content)
-        );
-    }
-    else {
-        die 'XXX';
+        my $uri = $req->uri->clone;
+        $uri->path('/');
+        $app = Plack::App::Proxy->new(remote => $uri->as_string)->to_app;
     }
 
-    return $res;
+    die 'XXX' unless $app;
+
+    my $env = $req->isa('HTTP::Request') ? $req->to_psgi : $req->env;
+    my $psgi_res = $app->($env);
+    if (ref($psgi_res) eq 'CODE') {
+        my $body = '';
+        $psgi_res->(sub {
+            $psgi_res = shift;
+            return Plack::Util::inline_object(
+                write => sub { $body .= $_[0] },
+                close => sub { push @$psgi_res, $body },
+            );
+        });
+    }
+    use Data::Dumper; die Dumper($psgi_res) unless ref($psgi_res) eq 'ARRAY';
+
+    # XXX: or just return the arrayref?
+    return Plack::Response->new(@$psgi_res);
 }
 
 sub _req_from_psgi {
@@ -78,13 +75,6 @@ sub _req_from_psgi {
     return HTTP::Request->new(
         map { $req->$_ } qw(method uri headers raw_body)
     );
-}
-
-sub _parse_request {
-    my $self = shift;
-    my ($req) = @_;
-    my ($app, $path) = $req =~ m{^//([^/]+)(.*)$};
-    return ($app, $path);
 }
 
 sub get    { shift->request('GET',    @_) }
