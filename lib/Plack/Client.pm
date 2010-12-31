@@ -51,9 +51,52 @@ sub request {
 
     die 'XXX' unless $app;
 
-    my $env = $req->isa('HTTP::Request') ? $req->to_psgi : $req->env;
-    $env->{CONTENT_LENGTH} ||= length($req->content); # XXX: ???
-    my $psgi_res = $app->($env);
+    my $env = $self->_req_to_env($req);
+    my $psgi_res = $self->_resolve_response($app->($env));
+
+    # XXX: or just return the arrayref?
+    return Plack::Response->new(@$psgi_res);
+}
+
+sub _req_to_env {
+    my $self = shift;
+    my ($req) = @_;
+
+    my $env;
+    if ($req->isa('HTTP::Request')) {
+        my $scheme = $req->uri->scheme;
+        # hack around with this - psgi requires a host and port to exist, and
+        # for the scheme to be either http or https
+        if ($scheme eq 'psgi-local') {
+            $req->uri->scheme('http');
+            $req->uri->host('Plack::Client');
+            $req->uri->port(-1);
+        }
+        elsif ($scheme eq 'psgi-local-ssl') {
+            $req->uri->scheme('https');
+            $req->uri->host('Plack::Client');
+            $req->uri->port(-1);
+        }
+        elsif ($scheme ne 'http' && $scheme ne 'https') {
+            die 'XXX';
+        }
+
+        $env = $req->to_psgi;
+    }
+    else {
+        $env = $req->env;
+    }
+
+    # work around http::message::psgi bug - see github issue 150 for plack
+    $env->{CONTENT_LENGTH} ||= length($req->content);
+
+    return $env;
+}
+
+sub _resolve_response {
+    my $self = shift;
+    my ($psgi_res) = @_;
+
     if (ref($psgi_res) eq 'CODE') {
         my $body = '';
         $psgi_res->(sub {
@@ -64,18 +107,10 @@ sub request {
             );
         });
     }
+
     use Data::Dumper; die Dumper($psgi_res) unless ref($psgi_res) eq 'ARRAY';
 
-    # XXX: or just return the arrayref?
-    return Plack::Response->new(@$psgi_res);
-}
-
-sub _req_from_psgi {
-    my $self = shift;
-    my ($req) = @_;
-    return HTTP::Request->new(
-        map { $req->$_ } qw(method uri headers raw_body)
-    );
+    return $psgi_res;
 }
 
 sub get    { shift->request('GET',    @_) }
