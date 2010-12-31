@@ -42,12 +42,12 @@ test_tcp_plackup(
     is($client->app_for('bar'), undef, "didn't get nonexistent app");
 
     {
-        my $res = $client->get('psgi://foo/');
+        my $res = $client->get('psgi-local://foo/');
         response_is($res, 200, ['Content-Type' => 'text/plain'], '/');
     }
 
     {
-        my $res = $client->get('psgi://foo/foo');
+        my $res = $client->get('psgi-local://foo/foo');
         response_is($res, 200, ['Content-Type' => 'text/plain'], 'oof/');
     }
 }

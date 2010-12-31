@@ -39,7 +39,7 @@ sub request {
     # both Plack::Request and HTTP::Request have a ->uri method
     my $scheme = $req->uri->scheme;
     my $app;
-    if ($scheme eq 'psgi') {
+    if ($scheme eq 'psgi-local') {
         $req->uri->path('/') unless length $req->uri->path;
         $app = $self->app_for($req->uri->authority);
     }

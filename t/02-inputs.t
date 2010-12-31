@@ -44,7 +44,7 @@ test_tcp_plackup(
     my $apps = {
         foo => eval $app,
     };
-    my $base_uri = 'psgi://foo';
+    my $base_uri = 'psgi-local://foo';
 
     test_responses($base_uri, Plack::Client->new(apps => $apps));
 }
