@@ -5,6 +5,7 @@ use warnings;
 use HTTP::Message::PSGI;
 use HTTP::Request;
 use Plack::App::Proxy;
+use Plack::Middleware::ContentLength;
 use Plack::Response;
 use Scalar::Util qw(blessed);
 
@@ -42,6 +43,7 @@ sub request {
     if ($scheme eq 'psgi-local') {
         $req->uri->path('/') unless length $req->uri->path;
         $app = $self->app_for($req->uri->authority);
+        $app = Plack::Middleware::ContentLength->wrap($app);
     }
     elsif ($scheme eq 'http' || $scheme eq 'https') {
         my $uri = $req->uri->clone;
