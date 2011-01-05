@@ -5,6 +5,8 @@ use lib 't/lib';
 use Test::More;
 use Plack::Client::Test;
 
+use HTTP::Message::PSGI;
+
 my $app = <<'APP';
 sub {
     my $env = shift;
@@ -56,44 +58,81 @@ sub test_responses {
     response_is(
         $client->get($base_uri),
         200,
-        ['Content-Type' => 'text/plain'],
+        ['Content-Type' => 'text/plain', 'Content-Length' => '7'],
         "GET\n/\n\n"
     );
 
     response_is(
         $client->get($base_uri . '/'),
         200,
-        ['Content-Type' => 'text/plain'],
+        ['Content-Type' => 'text/plain', 'Content-Length' => '7'],
         "GET\n/\n\n"
     );
 
     response_is(
         $client->get($base_uri . '/foo'),
         200,
-        ['Content-Type' => 'text/plain'],
+        ['Content-Type' => 'text/plain', 'Content-Length' => '10'],
         "GET\n/foo\n\n"
     );
 
     response_is(
         $client->get($base_uri . '/foo', ['X-Foo' => 'bar']),
         200,
-        ['Content-Type' => 'text/plain'],
+        ['Content-Type' => 'text/plain', 'Content-Length' => '19'],
         "GET\n/foo\n\nFoo: bar\n"
     );
 
     response_is(
         $client->get($base_uri . '/foo', HTTP::Headers->new('X-Foo' => 'bar')),
         200,
-        ['Content-Type' => 'text/plain'],
+        ['Content-Type' => 'text/plain', 'Content-Length' => '19'],
         "GET\n/foo\n\nFoo: bar\n"
     );
 
     response_is(
         $client->post($base_uri, [], "foo"),
         200,
-        ['Content-Type' => 'text/plain'],
+        ['Content-Type' => 'text/plain', 'Content-Length' => '12'],
         "POST\n/\n3\nfoo",
     );
+
+    response_is(
+        $client->put($base_uri, [], "foo"),
+        200,
+        ['Content-Type' => 'text/plain', 'Content-Length' => '11'],
+        "PUT\n/\n3\nfoo",
+    );
+
+    response_is(
+        $client->delete($base_uri),
+        200,
+        ['Content-Type' => 'text/plain', 'Content-Length' => '10'],
+        "DELETE\n/\n\n",
+    );
+
+    response_is(
+        $client->head($base_uri),
+        200,
+        ['Content-Type' => 'text/plain', 'Content-Length' => '8'],
+        "", # length("HEAD\n/\n\n") == 8
+    );
+
+    response_is(
+        $client->request(HTTP::Request->new(GET => $base_uri)),
+        200,
+        ['Content-Type' => 'text/plain', 'Content-Length' => '7'],
+        "GET\n/\n\n"
+    );
+
+    { local $TODO = "actually, i have no idea if this even makes sense";
+    response_is(
+        $client->request(HTTP::Request->new(GET => $base_uri)),
+        200,
+        ['Content-Type' => 'text/plain', 'Content-Length' => '7'],
+        "GET\n/\n\n"
+    );
+    }
 }
 
 done_testing;
