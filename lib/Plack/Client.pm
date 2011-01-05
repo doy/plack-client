@@ -53,6 +53,9 @@ sub request {
 
     my $env = $self->_req_to_env($req);
     my $psgi_res = $self->_resolve_response($app->($env));
+    # is there a better place to do this? Plack::App::Proxy already takes care
+    # of this (since it's making a real http request)
+    $psgi_res->[2] = [] if $env->{REQUEST_METHOD} eq 'HEAD';
 
     # XXX: or just return the arrayref?
     return Plack::Response->new(@$psgi_res);
