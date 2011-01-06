@@ -129,7 +129,7 @@ sub test_responses {
         my $base = URI->new($base_uri);
         my $uri = $base->clone;
         $uri->scheme('http');
-        $uri->path('/') unless $uri->path;
+        $uri->path('/') unless $uri->path; # XXX: work around plack bug
         my $env = HTTP::Request->new(GET => $uri)->to_psgi;
         $env->{'plack.client.url_scheme'} = $base->scheme;
         $env->{'plack.client.app_name'} = $base->authority
