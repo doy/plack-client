@@ -162,11 +162,11 @@ sub _resolve_response {
     my ($psgi_res) = @_;
 
     if (ref($psgi_res) eq 'CODE') {
-        my $body = '';
+        my $body = [];
         $psgi_res->(sub {
             $psgi_res = shift;
             return Plack::Util::inline_object(
-                write => sub { $body .= $_[0] },
+                write => sub { push @$body, $_[0] },
                 close => sub { push @$psgi_res, $body },
             );
         });
