@@ -125,18 +125,22 @@ sub test_responses {
         "GET\n/\n\n"
     );
 
-    my $uri = URI->new($base_uri);
-    $uri->scheme('http')
-        if $base_uri =~ /psgi-local/;
-    my $env = HTTP::Request->new(GET => $uri)->to_psgi;
-    $env->{'psgi.url_scheme'} = 'psgi-local'
-        if $base_uri =~ /psgi-local/;
-    response_is(
-        $client->request($env),
-        200,
-        ['Content-Type' => 'text/plain', 'Content-Length' => '7'],
-        "GET\n/\n\n"
-    );
+    {
+        my $base = URI->new($base_uri);
+        my $uri = $base->clone;
+        $uri->scheme('http');
+        $uri->path('/') unless $uri->path;
+        my $env = HTTP::Request->new(GET => $uri)->to_psgi;
+        $env->{'plack.client.url_scheme'} = $base->scheme;
+        $env->{'plack.client.app_name'} = $base->authority
+            if $base->scheme eq 'psgi-local';
+        response_is(
+            $client->request($env),
+            200,
+            ['Content-Type' => 'text/plain', 'Content-Length' => '7'],
+            "GET\n/\n\n"
+        );
+    }
 }
 
 done_testing;
