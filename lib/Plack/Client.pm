@@ -13,7 +13,8 @@ sub new {
     my $class = shift;
     my %params = @_;
 
-    die 'XXX' if exists($params{apps}) && ref($params{apps}) ne 'HASH';
+    die 'apps must be a hashref'
+        if exists($params{apps}) && ref($params{apps}) ne 'HASH';
 
     bless {
         apps => $params{apps},
@@ -53,7 +54,7 @@ sub _parse_request_args {
             return $self->_request_from_plack_request(@_);
         }
         else {
-            die 'XXX';
+            die 'Request object must be either an HTTP::Request or a Plack::Request';
         }
     }
     elsif ((reftype($_[0]) || '') eq 'HASH') {
@@ -109,7 +110,7 @@ sub _http_request_to_env {
         $req->uri->port(-1);
     }
     elsif ($scheme ne 'http' && $scheme ne 'https') {
-        die 'XXX';
+        die 'Invalid URL scheme ' . $scheme;
     }
 
     # work around http::message::psgi bug - see github issue 163 for plack
@@ -144,6 +145,7 @@ sub _app_from_req {
             $app_name =~ s/(.*):.*/$1/; # in case a port was added at some point
         }
         $app = $self->app_for($app_name);
+        die "Unknown app: $app_name" unless $app;
         $app = Plack::Middleware::ContentLength->wrap($app);
     }
     elsif ($scheme eq 'http' || $scheme eq 'https') {
@@ -152,7 +154,7 @@ sub _app_from_req {
         $app = Plack::App::Proxy->new(remote => $uri->as_string)->to_app;
     }
 
-    die 'XXX' unless $app;
+    die "Couldn't find app" unless $app;
 
     return $app;
 }
