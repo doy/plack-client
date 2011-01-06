@@ -41,8 +41,15 @@ sub request {
     my $scheme = $req->uri->scheme;
     my $app;
     if ($scheme eq 'psgi-local') {
-        $req->uri->path('/') unless length $req->uri->path;
-        $app = $self->app_for($req->uri->authority);
+        if ($req->isa('Plack::Request')) {
+            $req->env->{REQUEST_URI} = '/' unless length $req->request_uri;
+        }
+        else {
+            $req->uri->path('/') unless length $req->uri->path;
+        }
+        my $app_name = $req->uri->authority;
+        $app_name =~ s/:.*//;
+        $app = $self->app_for($app_name);
         $app = Plack::Middleware::ContentLength->wrap($app);
     }
     elsif ($scheme eq 'http' || $scheme eq 'https') {

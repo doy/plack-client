@@ -125,14 +125,18 @@ sub test_responses {
         "GET\n/\n\n"
     );
 
-    { local $TODO = "actually, i have no idea if this even makes sense";
+    my $uri = URI->new($base_uri);
+    $uri->scheme('http')
+        if $base_uri =~ /psgi-local/;
+    my $env = HTTP::Request->new(GET => $uri)->to_psgi;
+    $env->{'psgi.url_scheme'} = 'psgi-local'
+        if $base_uri =~ /psgi-local/;
     response_is(
-        $client->request(HTTP::Request->new(GET => $base_uri)),
+        $client->request($env),
         200,
         ['Content-Type' => 'text/plain', 'Content-Length' => '7'],
         "GET\n/\n\n"
     );
-    }
 }
 
 done_testing;
