@@ -23,6 +23,8 @@ use Scalar::Util qw(blessed reftype);
 
 =head1 DESCRIPTION
 
+B<NOTE: This is a trial release while I work out what the API should be. Use at your own risk!>
+
 A common task required in more complicated web applications is communicating
 with various web services for different tasks. These web services may be spread
 among a number of different servers, but some of them may be on the local
