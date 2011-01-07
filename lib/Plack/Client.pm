@@ -1,6 +1,7 @@
 package Plack::Client;
 use strict;
 use warnings;
+# ABSTRACT: abstract interface to remote web servers and local PSGI apps
 
 use HTTP::Message::PSGI;
 use HTTP::Request;
@@ -8,6 +9,12 @@ use Plack::App::Proxy;
 use Plack::Middleware::ContentLength;
 use Plack::Response;
 use Scalar::Util qw(blessed reftype);
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+=cut
 
 sub new {
     my $class = shift;
@@ -184,5 +191,53 @@ sub head   { shift->request('HEAD',   @_) }
 sub post   { shift->request('POST',   @_) }
 sub put    { shift->request('PUT',    @_) }
 sub delete { shift->request('DELETE', @_) }
+
+=head1 BUGS
+
+No known bugs.
+
+Please report any bugs through RT: email
+C<bug-plack-client at rt.cpan.org>, or browse to
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Plack-Client>.
+
+=head1 SEE ALSO
+
+L<Plack>
+
+L<HTTP::Request>
+
+=head1 SUPPORT
+
+You can find this documentation for this module with the perldoc command.
+
+    perldoc Plack::Client
+
+You can also look for information at:
+
+=over 4
+
+=item * AnnoCPAN: Annotated CPAN documentation
+
+L<http://annocpan.org/dist/Plack-Client>
+
+=item * CPAN Ratings
+
+L<http://cpanratings.perl.org/d/Plack-Client>
+
+=item * RT: CPAN's request tracker
+
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Plack-Client>
+
+=item * Search CPAN
+
+L<http://search.cpan.org/dist/Plack-Client>
+
+=back
+
+=head1 AUTHOR
+
+Jesse Luehrs <doy at tozt dot net>
+
+=cut
 
 1;
