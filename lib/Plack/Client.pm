@@ -348,10 +348,6 @@ L<http://search.cpan.org/dist/Plack-Client>
 
 =back
 
-=head1 AUTHOR
-
-Jesse Luehrs <doy at tozt dot net>
-
 =cut
 
 1;
