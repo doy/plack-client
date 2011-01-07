@@ -48,7 +48,10 @@ test_tcp_plackup(
     };
     my $base_uri = 'psgi-local://foo';
 
-    test_responses($base_uri, Plack::Client->new(apps => $apps));
+    test_responses(
+        $base_uri,
+        Plack::Client->new('psgi-local' => {apps => $apps})
+    );
 }
 
 sub test_responses {

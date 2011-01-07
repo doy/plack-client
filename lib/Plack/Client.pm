@@ -3,10 +3,10 @@ use strict;
 use warnings;
 # ABSTRACT: abstract interface to remote web servers and local PSGI apps
 
+use Class::Load;
 use HTTP::Message::PSGI;
 use HTTP::Request;
-use Plack::App::Proxy;
-use Plack::Middleware::ContentLength;
+use Plack::Request;
 use Plack::Response;
 use Scalar::Util qw(blessed reftype);
 
@@ -76,39 +76,44 @@ sub new {
     my $class = shift;
     my %params = @_;
 
-    die 'apps must be a hashref'
-        if exists($params{apps}) && ref($params{apps}) ne 'HASH';
-
     bless {
-        apps  => $params{apps},
-        proxy => Plack::App::Proxy->new->to_app,
+        backend      => {},
+        backend_args => \%params,
     }, $class;
 }
 
-=method apps
-
-  my $apps = $client->apps;
-
-Returns the C<apps> hashref that was passed to the constructor.
+=method backend
 
 =cut
 
-sub apps   { shift->{apps}  }
-sub _proxy { shift->{proxy} }
-
-=method app_for
-
-  my $app = $client->app_for('foo');
-
-Returns the app corresponding to the given app name (or undef, if no such app
-exists).
-
-=cut
-
-sub app_for {
+sub backend {
     my $self = shift;
-    my ($for) = @_;
-    return $self->apps->{$for};
+    my ($scheme) = @_;
+    $scheme = $self->_normalize_scheme($scheme);
+    return $self->{backend}->{$scheme};
+}
+
+sub _set_backend {
+    my $self = shift;
+    my ($scheme, $backend) = @_;
+    $scheme = $self->_normalize_scheme($scheme);
+    $self->{backend}->{$scheme} = $backend;
+}
+
+sub _normalize_scheme {
+    my $self = shift;
+
+    my $scheme = blessed($_[0]) ? $_[0]->scheme : $_[0];
+    $scheme =~ s/-ssl$//;
+    $scheme = 'http' if $scheme eq 'https';
+
+    return $scheme;
+}
+
+sub _backend_args {
+    my $self = shift;
+    my ($scheme) = @_;
+    return %{ $self->{backend_args}->{$scheme} || {} };
 }
 
 =method request
@@ -196,24 +201,20 @@ sub _http_request_to_env {
     my $self = shift;
     my ($req) = @_;
 
-    my $scheme = $req->uri->scheme;
-    my $app_name;
+    my $scheme    = $req->uri->scheme;
+    my $authority = $req->uri->authority;
+
     # hack around with this - psgi requires a host and port to exist, and
     # for the scheme to be either http or https
-    if ($scheme eq 'psgi-local') {
-        $app_name = $req->uri->authority;
-        $req->uri->scheme('http');
+    if ($scheme ne 'http' && $scheme ne 'https') {
+        if ($scheme =~ /-ssl$/) {
+            $req->uri->scheme('https');
+        }
+        else {
+            $req->uri->scheme('http');
+        }
         $req->uri->host('Plack::Client');
         $req->uri->port(-1);
-    }
-    elsif ($scheme eq 'psgi-local-ssl') {
-        $app_name = $req->uri->authority;
-        $req->uri->scheme('https');
-        $req->uri->host('Plack::Client');
-        $req->uri->port(-1);
-    }
-    elsif ($scheme ne 'http' && $scheme ne 'https') {
-        die 'Invalid URL scheme ' . $scheme;
     }
 
     # work around http::message::psgi bug - see github issue 163 for plack
@@ -227,8 +228,8 @@ sub _http_request_to_env {
     $env->{CONTENT_LENGTH} ||= length($req->content);
 
     $env->{'plack.client.url_scheme'} = $scheme;
-    $env->{'plack.client.app_name'}   = $app_name
-        if defined $app_name;
+    $env->{'plack.client.authority'}  = $authority
+        if defined $authority;
 
     return $env;
 }
@@ -239,28 +240,32 @@ sub _app_from_req {
 
     my $uri = $req->uri;
     my $scheme = $req->env->{'plack.client.url_scheme'} || $uri->scheme;
-    my $app_name = $req->env->{'plack.client.app_name'};
 
-    my $app;
-    if ($scheme eq 'psgi-local') {
-        if (!defined $app_name) {
-            $app_name = $uri->authority;
-            $app_name =~ s/(.*):.*/$1/; # in case a port was added at some point
-        }
-        $app = $self->app_for($app_name);
-        die "Unknown app: $app_name" unless $app;
-        $app = Plack::Middleware::ContentLength->wrap($app);
-    }
-    elsif ($scheme eq 'http' || $scheme eq 'https') {
-        my $uri = $uri->clone;
-        $uri->path('/');
-        $req->env->{'plack.proxy.remote'} = $uri->as_string;
-        $app = $self->_proxy;
-    }
+    my $backend = $self->_scheme_to_backend($scheme);
+    my $app = $backend->app_from_req($req);
 
     die "Couldn't find app" unless $app;
 
     return $app;
+}
+
+sub _scheme_to_backend {
+    my $self = shift;
+    my ($scheme) = @_;
+
+    $scheme = $self->_normalize_scheme($scheme);
+
+    my $backend = $self->backend($scheme);
+    return $backend if $backend;
+
+    (my $scheme_class = $scheme) =~ s/-/_/;
+    $scheme_class = "Plack::Client::Backend::$scheme_class";
+    Class::Load::load_class($scheme_class);
+
+    $backend = $scheme_class->new($self->_backend_args($scheme));
+    $self->_set_backend($scheme, $backend);
+
+    return $self->backend($scheme);
 }
 
 sub _resolve_response {
