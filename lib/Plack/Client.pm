@@ -80,7 +80,8 @@ sub new {
         if exists($params{apps}) && ref($params{apps}) ne 'HASH';
 
     bless {
-        apps => $params{apps},
+        apps  => $params{apps},
+        proxy => Plack::App::Proxy->new,
     }, $class;
 }
 
@@ -92,7 +93,8 @@ Returns the C<apps> hashref that was passed to the constructor.
 
 =cut
 
-sub apps { shift->{apps} }
+sub apps   { shift->{apps}  }
+sub _proxy { shift->{proxy} }
 
 =method app_for
 
@@ -252,7 +254,8 @@ sub _app_from_req {
     elsif ($scheme eq 'http' || $scheme eq 'https') {
         my $uri = $uri->clone;
         $uri->path('/');
-        $app = Plack::App::Proxy->new(remote => $uri->as_string)->to_app;
+        $req->env->{'plack.proxy.remote'} = $uri->as_string;
+        $app = $self->_proxy;
     }
 
     die "Couldn't find app" unless $app;
