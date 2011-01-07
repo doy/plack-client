@@ -184,7 +184,7 @@ sub _request_from_plack_request {
     my $self = shift;
     my ($req) = @_;
 
-    return ($self->_app_from_req($req), $req->env);
+    return ($self->_app_from_request($req), $req->env);
 }
 
 sub _request_from_env {
@@ -234,7 +234,7 @@ sub _http_request_to_env {
     return $env;
 }
 
-sub _app_from_req {
+sub _app_from_request {
     my $self = shift;
     my ($req) = @_;
 
@@ -242,7 +242,7 @@ sub _app_from_req {
     my $scheme = $req->env->{'plack.client.url_scheme'} || $uri->scheme;
 
     my $backend = $self->_scheme_to_backend($scheme);
-    my $app = $backend->app_from_req($req);
+    my $app = $backend->app_from_request($req);
 
     die "Couldn't find app" unless $app;
 

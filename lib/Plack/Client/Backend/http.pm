@@ -15,7 +15,7 @@ sub new {
 
 sub proxy { shift->{proxy} }
 
-sub app_from_req {
+sub app_from_request {
     my $self = shift;
     my ($req) = @_;
 

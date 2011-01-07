@@ -24,7 +24,7 @@ sub app_for {
     return $self->apps->{$for};
 }
 
-sub app_from_req {
+sub app_from_request {
     my $self = shift;
     my ($req) = @_;
 
