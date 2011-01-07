@@ -135,6 +135,7 @@ sub test_responses {
         $uri->scheme('http');
         $uri->path('/') unless $uri->path; # XXX: work around plack bug
         my $env = HTTP::Request->new(GET => $uri)->to_psgi;
+        $env->{CONTENT_LENGTH} = 0; # XXX: work around plack bug
         $env->{'plack.client.url_scheme'} = $base->scheme;
         $env->{'plack.client.app_name'} = $base->authority
             if $base->scheme eq 'psgi-local';
@@ -152,6 +153,7 @@ sub test_responses {
         $uri->scheme('http');
         $uri->path('/') unless $uri->path; # XXX: work around plack bug
         my $env = HTTP::Request->new(GET => $uri)->to_psgi;
+        $env->{CONTENT_LENGTH} = 0; # XXX: work around plack bug
         $env->{'plack.client.url_scheme'} = $base->scheme;
         $env->{'plack.client.app_name'} = $base->authority
             if $base->scheme eq 'psgi-local';
