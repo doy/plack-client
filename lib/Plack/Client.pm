@@ -81,7 +81,7 @@ sub new {
 
     bless {
         apps  => $params{apps},
-        proxy => Plack::App::Proxy->new,
+        proxy => Plack::App::Proxy->new->to_app,
     }, $class;
 }
 
