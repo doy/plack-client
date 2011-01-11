@@ -1,6 +1,8 @@
 Revision history for Plack-Client
 
 {{$NEXT}}
+
+0.02-TRIAL  2011-01-11
       - url schemes are now handled by separate backends, which must be
         explicitly requested in the constructor
       - lots of other refactoring
