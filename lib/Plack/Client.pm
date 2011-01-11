@@ -14,7 +14,10 @@ use Scalar::Util qw(blessed reftype);
 =head1 SYNOPSIS
 
   use Plack::Client;
-  my $client = Plack::Client->new({ myapp => sub { ... } });
+  my $client = Plack::Client->new(
+      'psgi-local' => { myapp => sub { ... } },
+      'http'       => {},
+  );
   my $res1 = $client->get('http://google.com/');
   my $res2 = $client->post(
       'psgi-local://myapp/foo.html',
@@ -39,37 +42,37 @@ both local and remote services through a common api, so that services can be
 moved between servers with only a small change in configuration, rather than
 having to change the actual code involved in accessing it. This module solves
 this issue by providing an API similar to L<LWP::UserAgent>, but using an
-underlying implementation consisting entirely of Plack apps. Local apps are
-distinguished from remote apps by the URL scheme: remote URLs use C<http> or
-C<https>, while local URLs use C<psgi-local> or C<psgi-local-ssl>. For
-instance, accessing C</foo> on a remote application would look like this:
-C<< $client->get('http://some.other.server.com/foo') >>, and accessing the same
-thing on a local application would look like this:
-C<< $client->get('psgi-local://myapp/foo') >>, but they will both give the same
-result. This API allows a simple config file change to be all that's necessary
-to migrate your service to a different server.
+underlying implementation consisting entirely of Plack apps. The app to use for
+a given request is determined based on the URL schema; for instance,
+C<< $client->get('http://example.com/foo') >> would call a L<Plack::App::Proxy>
+app to retrieve a remote resource, while
+C<< $client->get('psgi-local://myapp/foo') >> would directly call the C<myapp>
+app coderef that was passed into the constructor for the
+L<psgi-local|Plack::Client::Backend::psgi_local> backend. This API allows a
+simple config file change to be all that's necessary to migrate your service to
+a different server. The list of available URL schemas is determined by the
+arguments passed to the constructor, which map schemas to backends which return
+appropriate apps based on the request.
 
 =cut
 
 =method new
 
   my $client = Plack::Client->new(
-      apps => {
-          foo => sub { ... },
-          bar => MyApp->new->to_app,
-      }
+      'psgi-local => {
+          apps => {
+              foo => sub { ... },
+              bar => MyApp->new->to_app,
+          }
+      },
+      'http' => Plack::Client::Backend::http->new,
   )
 
-Constructor. Takes a hash of arguments, with these keys being valid:
-
-=over 4
-
-=item apps
-
-A mapping of local app names to PSGI app coderefs. These are the apps that will
-be available via the C<psgi-local> URL scheme.
-
-=back
+Constructor. Takes a hash of arguments, where keys are URL schemas, and values
+are backends which handle those schemas. Hashref and arrayref values are also
+valid, and will be dereferenced and passed to the constructor of the default
+backend for that scheme (the class C<Plack::Client::Backend::$scheme>, where
+C<$scheme> has dashes replaced by underscores).
 
 =cut
 
@@ -110,6 +113,15 @@ sub new {
 }
 
 =method backend
+
+  $client->backend('http');
+  $client->backend($req->uri);
+
+Returns the backend object used to generate apps for the given URL scheme or
+URI object. By default, the SSL variant of a scheme will be handled by the same
+backend as the non-SSL variant, although this can be overridden by explicitly
+specifying a backend for the SSL variant. SSL variants are indicated by
+appending C<-ssl> to the scheme (or by being equal to C<https>).
 
 =cut
 
