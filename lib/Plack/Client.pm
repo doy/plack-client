@@ -76,9 +76,29 @@ sub new {
     my $class = shift;
     my %params = @_;
 
+    my %backends;
+    for my $scheme (keys %params) {
+        my $backend = $params{$scheme};
+        if (blessed($backend)) {
+            $backends{$scheme} = $backend;
+        }
+        elsif (ref($backend)) {
+            (my $normal_scheme = $scheme) =~ s/-/_/g;
+            my $backend_class = "Plack::Client::Backend::$normal_scheme";
+            Class::Load::load_class($backend_class);
+            $backends{$scheme} = $backend_class->new(
+                reftype($backend) eq 'HASH'  ? %$backend
+              : reftype($backend) eq 'ARRAY' ? @$backend
+              :                                $$backend
+            );
+        }
+        else {
+            die 'XXX';
+        }
+    }
+
     bless {
-        backend      => {},
-        backend_args => \%params,
+        backends => \%backends,
     }, $class;
 }
 
@@ -89,31 +109,18 @@ sub new {
 sub backend {
     my $self = shift;
     my ($scheme) = @_;
-    $scheme = $self->_normalize_scheme($scheme);
-    return $self->{backend}->{$scheme};
-}
-
-sub _set_backend {
-    my $self = shift;
-    my ($scheme, $backend) = @_;
-    $scheme = $self->_normalize_scheme($scheme);
-    $self->{backend}->{$scheme} = $backend;
-}
-
-sub _normalize_scheme {
-    my $self = shift;
-
-    my $scheme = blessed($_[0]) ? $_[0]->scheme : $_[0];
-    $scheme =~ s/-ssl$//;
+    $scheme = $scheme->scheme if blessed($scheme);
+    my $backend = $self->_backend($scheme);
+    return $backend if defined $backend;
     $scheme = 'http' if $scheme eq 'https';
-
-    return $scheme;
+    $scheme =~ s/-ssl$//;
+    return $self->_backend($scheme);
 }
 
-sub _backend_args {
+sub _backend {
     my $self = shift;
     my ($scheme) = @_;
-    return %{ $self->{backend_args}->{$scheme} || {} };
+    return $self->{backends}->{$scheme};
 }
 
 =method request
@@ -238,34 +245,14 @@ sub _app_from_request {
     my $self = shift;
     my ($req) = @_;
 
-    my $uri = $req->uri;
-    my $scheme = $req->env->{'plack.client.url_scheme'} || $uri->scheme;
+    my $scheme = $req->env->{'plack.client.url_scheme'} || $req->uri->scheme;
 
-    my $backend = $self->_scheme_to_backend($scheme);
+    my $backend = $self->backend($scheme);
     my $app = $backend->app_from_request($req);
 
     die "Couldn't find app" unless $app;
 
     return $app;
-}
-
-sub _scheme_to_backend {
-    my $self = shift;
-    my ($scheme) = @_;
-
-    $scheme = $self->_normalize_scheme($scheme);
-
-    my $backend = $self->backend($scheme);
-    return $backend if $backend;
-
-    (my $scheme_class = $scheme) =~ s/-/_/;
-    $scheme_class = "Plack::Client::Backend::$scheme_class";
-    Class::Load::load_class($scheme_class);
-
-    $backend = $scheme_class->new($self->_backend_args($scheme));
-    $self->_set_backend($scheme, $backend);
-
-    return $self->backend($scheme);
 }
 
 sub _resolve_response {

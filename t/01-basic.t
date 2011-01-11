@@ -10,7 +10,7 @@ test_tcp_plackup(
     sub {
         my $base_url = shift;
 
-        my $client = Plack::Client->new;
+        my $client = Plack::Client->new(http => {});
         isa_ok($client, 'Plack::Client');
 
         {

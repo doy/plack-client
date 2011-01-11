@@ -42,7 +42,7 @@ test_tcp_plackup(
     sub {
         my $base_uri = shift;
 
-        test_responses($base_uri, Plack::Client->new);
+        test_responses($base_uri, Plack::Client->new(http => {}));
     },
 );
 
