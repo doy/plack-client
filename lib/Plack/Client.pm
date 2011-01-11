@@ -227,8 +227,8 @@ sub _http_request_to_env {
     my $self = shift;
     my ($req) = @_;
 
-    my $scheme    = $req->uri->scheme;
-    my $authority = $req->uri->authority;
+    my $scheme       = $req->uri->scheme;
+    my $original_uri = $req->uri->clone;
 
     # hack around with this - psgi requires a host and port to exist, and
     # for the scheme to be either http or https
@@ -253,9 +253,7 @@ sub _http_request_to_env {
     # work around http::message::psgi bug - see github issue 150 for plack
     $env->{CONTENT_LENGTH} ||= length($req->content);
 
-    $env->{'plack.client.url_scheme'} = $scheme;
-    $env->{'plack.client.authority'}  = $authority
-        if defined $authority;
+    $env->{'plack.client.original_uri'} = $original_uri;
 
     return $env;
 }
@@ -264,9 +262,9 @@ sub _app_from_request {
     my $self = shift;
     my ($req) = @_;
 
-    my $scheme = $req->env->{'plack.client.url_scheme'} || $req->uri->scheme;
+    my $uri = $req->env->{'plack.client.original_uri'} || $req->uri;
 
-    my $backend = $self->backend($scheme);
+    my $backend = $self->backend($uri);
     my $app = $backend->app_from_request($req);
 
     croak "Couldn't find app" unless $app;

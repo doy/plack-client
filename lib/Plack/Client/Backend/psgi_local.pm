@@ -78,11 +78,15 @@ sub app_from_request {
     my $self = shift;
     my ($req) = @_;
 
-    my $app_name = $req->env->{'plack.client.authority'};
-    if (!defined $app_name) {
+    my $app_name;
+    if (my $uri = $req->env->{'plack.client.original_uri'}) {
+        $app_name = $uri->authority;
+    }
+    else {
         $app_name = $req->uri->authority;
         $app_name =~ s/(.*):.*/$1/; # in case a port was added at some point
     }
+
     my $app = $self->app_for($app_name);
     croak "Unknown app: $app_name" unless $app;
     return Plack::Middleware::ContentLength->wrap($app);
