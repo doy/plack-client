@@ -5,5 +5,5 @@ Revision history for Plack-Client
         explicitly requested in the constructor
       - lots of other refactoring
 
-0.01  2011-01-07
+0.01-TRIAL  2011-01-07
       - Initial release
