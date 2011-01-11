@@ -17,12 +17,12 @@ sub new {
     }, $class;
 }
 
-sub apps { shift->{apps} }
+sub _apps { shift->{apps} }
 
 sub app_for {
     my $self = shift;
     my ($for) = @_;
-    return $self->apps->{$for};
+    return $self->_apps->{$for};
 }
 
 sub app_from_request {

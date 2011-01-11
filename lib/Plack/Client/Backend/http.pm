@@ -13,7 +13,7 @@ sub new {
     }, $class;
 }
 
-sub proxy { shift->{proxy} }
+sub _proxy { shift->{proxy} }
 
 sub app_from_request {
     my $self = shift;
@@ -22,7 +22,7 @@ sub app_from_request {
     my $uri = $req->uri->clone;
     $uri->path('/');
     $req->env->{'plack.proxy.remote'} = $uri->as_string;
-    return $self->proxy;
+    return $self->_proxy;
 }
 
 1;
