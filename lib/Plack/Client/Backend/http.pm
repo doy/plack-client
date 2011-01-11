@@ -1,8 +1,32 @@
 package Plack::Client::Backend::http;
 use strict;
 use warnings;
+# ABSTRACT: backend for handling HTTP requests
 
 use Plack::App::Proxy;
+
+=head1 SYNOPSIS
+
+  Plack::Client->new(
+      'http' => {},
+  );
+
+  Plack::Client->new(
+      'http' => Plack::Client::Backend::http->new,
+  );
+
+=head1 DESCRIPTION
+
+This backend implements HTTP requests. The current implementation uses
+L<Plack::App::Proxy> to make the request.
+
+=cut
+
+=method new
+
+Constructor. Takes no arguments.
+
+=cut
 
 sub new {
     my $class = shift;
@@ -14,6 +38,13 @@ sub new {
 }
 
 sub _proxy { shift->{proxy} }
+
+=method app_from_request
+
+Takes a L<Plack::Request> object, and returns an app which will retrieve the
+HTTP resource.
+
+=cut
 
 sub app_from_request {
     my $self = shift;
