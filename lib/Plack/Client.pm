@@ -80,12 +80,18 @@ sub new {
     for my $scheme (keys %params) {
         my $backend = $params{$scheme};
         if (blessed($backend)) {
+            die "Backends must support the app_from_request method"
+                unless $backend->can('app_from_request');
             $backends{$scheme} = $backend;
         }
         elsif (ref($backend)) {
             (my $normal_scheme = $scheme) =~ s/-/_/g;
             my $backend_class = "Plack::Client::Backend::$normal_scheme";
             Class::Load::load_class($backend_class);
+            die "Backends must support the app_from_request method"
+                unless $backend_class->can('app_from_request');
+            die "Backend classes must have a constructor"
+                unless $backend_class->can('new');
             $backends{$scheme} = $backend_class->new(
                 reftype($backend) eq 'HASH'  ? %$backend
               : reftype($backend) eq 'ARRAY' ? @$backend
