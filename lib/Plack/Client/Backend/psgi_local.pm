@@ -9,7 +9,7 @@ sub new {
     my %params = @_;
 
     die 'apps must be a hashref'
-        if exists($params{apps}) && ref($params{apps}) ne 'HASH';
+        if ref($params{apps}) ne 'HASH';
 
     bless {
         apps => $params{apps},
