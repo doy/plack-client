@@ -2,13 +2,14 @@ package Plack::Client::Backend::psgi_local;
 use strict;
 use warnings;
 
+use Carp;
 use Plack::Middleware::ContentLength;
 
 sub new {
     my $class = shift;
     my %params = @_;
 
-    die 'apps must be a hashref'
+    croak 'apps must be a hashref'
         if ref($params{apps}) ne 'HASH';
 
     bless {
@@ -34,7 +35,7 @@ sub app_from_request {
         $app_name =~ s/(.*):.*/$1/; # in case a port was added at some point
     }
     my $app = $self->app_for($app_name);
-    die "Unknown app: $app_name" unless $app;
+    croak "Unknown app: $app_name" unless $app;
     return Plack::Middleware::ContentLength->wrap($app);
 }
 

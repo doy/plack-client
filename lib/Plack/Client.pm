@@ -3,6 +3,7 @@ use strict;
 use warnings;
 # ABSTRACT: abstract interface to remote web servers and local PSGI apps
 
+use Carp;
 use Class::Load;
 use HTTP::Message::PSGI;
 use HTTP::Request;
@@ -80,7 +81,7 @@ sub new {
     for my $scheme (keys %params) {
         my $backend = $params{$scheme};
         if (blessed($backend)) {
-            die "Backends must support the app_from_request method"
+            croak "Backends must support the app_from_request method"
                 unless $backend->can('app_from_request');
             $backends{$scheme} = $backend;
         }
@@ -88,9 +89,9 @@ sub new {
             (my $normal_scheme = $scheme) =~ s/-/_/g;
             my $backend_class = "Plack::Client::Backend::$normal_scheme";
             Class::Load::load_class($backend_class);
-            die "Backends must support the app_from_request method"
+            croak "Backends must support the app_from_request method"
                 unless $backend_class->can('app_from_request');
-            die "Backend classes must have a constructor"
+            croak "Backend classes must have a constructor"
                 unless $backend_class->can('new');
             $backends{$scheme} = $backend_class->new(
                 reftype($backend) eq 'HASH'  ? %$backend
@@ -99,7 +100,7 @@ sub new {
             );
         }
         else {
-            die 'XXX';
+            croak 'XXX';
         }
     }
 
@@ -175,7 +176,7 @@ sub _parse_request_args {
             return $self->_request_from_plack_request(@_);
         }
         else {
-            die 'Request object must be either an HTTP::Request or a Plack::Request';
+            croak 'Request object must be either an HTTP::Request or a Plack::Request';
         }
     }
     elsif ((reftype($_[0]) || '') eq 'HASH') {
@@ -256,7 +257,7 @@ sub _app_from_request {
     my $backend = $self->backend($scheme);
     my $app = $backend->app_from_request($req);
 
-    die "Couldn't find app" unless $app;
+    croak "Couldn't find app" unless $app;
 
     return $app;
 }
@@ -276,7 +277,11 @@ sub _resolve_response {
         });
     }
 
-    use Data::Dumper; die Dumper($psgi_res) unless ref($psgi_res) eq 'ARRAY';
+    if (ref($psgi_res) ne 'ARRAY') {
+        require Data::Dumper;
+        croak "Unable to understand app response:\n"
+            . Data::Dumper::Dumper($psgi_res);
+    }
 
     return $psgi_res;
 }
