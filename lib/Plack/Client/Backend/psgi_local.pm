@@ -6,6 +6,8 @@ use warnings;
 use Carp;
 use Plack::Middleware::ContentLength;
 
+use base 'Plack::Client::Backend';
+
 =head1 SYNOPSIS
 
   Plack::Client->new(
@@ -43,13 +45,14 @@ A mapping of local app names to PSGI app coderefs.
 sub new {
     my $class = shift;
     my %params = @_;
+    my $self = $class->SUPER::new(@_);
 
     croak 'apps must be a hashref'
         if ref($params{apps}) ne 'HASH';
 
-    bless {
-        apps => $params{apps},
-    }, $class;
+    $self->{apps} = $params{apps};
+
+    return $self;
 }
 
 sub _apps { shift->{apps} }

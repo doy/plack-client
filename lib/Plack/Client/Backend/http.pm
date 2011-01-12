@@ -5,6 +5,8 @@ use warnings;
 
 use Plack::App::Proxy;
 
+use base 'Plack::Client::Backend';
+
 =head1 SYNOPSIS
 
   Plack::Client->new(
@@ -30,11 +32,11 @@ Constructor. Takes no arguments.
 
 sub new {
     my $class = shift;
-    my %params = @_;
+    my $self = $class->SUPER::new(@_);
 
-    bless {
-        proxy => Plack::App::Proxy->new->to_app,
-    }, $class;
+    $self->{proxy} = Plack::App::Proxy->new->to_app;
+
+    return $self;
 }
 
 sub _proxy { shift->{proxy} }

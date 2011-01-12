@@ -69,10 +69,13 @@ appropriate apps based on the request.
   )
 
 Constructor. Takes a hash of arguments, where keys are URL schemas, and values
-are backends which handle those schemas. Hashref and arrayref values are also
-valid, and will be dereferenced and passed to the constructor of the default
-backend for that scheme (the class C<Plack::Client::Backend::$scheme>, where
-C<$scheme> has dashes replaced by underscores).
+are backends which handle those schemas. Backends are really just coderefs
+which receive a L<Plack::Request> and return a PSGI application coderef, but
+see L<Plack::Client::Backend> for a more structured way to define these.
+Hashref and arrayref values are also valid, and will be dereferenced and passed
+to the constructor of the default backend for that scheme (the class
+C<Plack::Client::Backend::$scheme>, where C<$scheme> has dashes replaced by
+underscores).
 
 =cut
 
@@ -83,27 +86,26 @@ sub new {
     my %backends;
     for my $scheme (keys %params) {
         my $backend = $params{$scheme};
-        if (blessed($backend)) {
-            croak "Backends must support the app_from_request method"
-                unless $backend->can('app_from_request');
+        if ((blessed($backend) || '') eq 'Plack::Client::Backend') {
+            $backends{$scheme} = $backend->as_code;
+        }
+        elsif (reftype($backend) eq 'CODE') {
             $backends{$scheme} = $backend;
         }
         elsif (ref($backend)) {
             (my $normal_scheme = $scheme) =~ s/-/_/g;
             my $backend_class = "Plack::Client::Backend::$normal_scheme";
             Class::Load::load_class($backend_class);
-            croak "Backends must support the app_from_request method"
-                unless $backend_class->can('app_from_request');
-            croak "Backend classes must have a constructor"
-                unless $backend_class->can('new');
+            croak "Backend classes must inherit from Plack::Client::Backend"
+                unless $backend_class->isa('Plack::Client::Backend');
             $backends{$scheme} = $backend_class->new(
                 reftype($backend) eq 'HASH'  ? %$backend
               : reftype($backend) eq 'ARRAY' ? @$backend
               :                                $$backend
-            );
+            )->as_code;
         }
         else {
-            croak 'XXX';
+            croak "Backends must be a coderef or a Plack::Client::Backend instance";
         }
     }
 
@@ -265,7 +267,7 @@ sub _app_from_request {
     my $uri = $req->env->{'plack.client.original_uri'} || $req->uri;
 
     my $backend = $self->backend($uri);
-    my $app = $backend->app_from_request($req);
+    my $app = $backend->($req);
 
     croak "Couldn't find app" unless $app;
 
