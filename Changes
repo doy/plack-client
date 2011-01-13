@@ -1,6 +1,8 @@
 Revision history for Plack-Client
 
 {{$NEXT}}
+
+0.03  2011-01-12
       - refactor backends a bit more, and document them
 
 0.02-TRIAL  2011-01-11
