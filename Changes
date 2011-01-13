@@ -1,6 +1,7 @@
 Revision history for Plack-Client
 
 {{$NEXT}}
+      - refactor backends a bit more, and document them
 
 0.02-TRIAL  2011-01-11
       - url schemes are now handled by separate backends, which must be
