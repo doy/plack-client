@@ -7,8 +7,7 @@ use Plack::Client::Test;
 
 use HTTP::Message::PSGI;
 
-my $app = <<'APP';
-sub {
+my $app = sub {
     my $env = shift;
     return [
         200,
@@ -30,8 +29,7 @@ sub {
             },
         ]
     ];
-}
-APP
+};
 
 test_tcp_plackup(
     $app,
@@ -44,7 +42,7 @@ test_tcp_plackup(
 
 {
     my $apps = {
-        foo => eval $app,
+        foo => $app,
     };
     my $base_uri = 'psgi-local://foo';
 

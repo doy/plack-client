@@ -3,6 +3,7 @@ use strict;
 use warnings;
 
 use HTTP::Headers;
+use Plack::Runner;
 use Plack::Util;
 use Test::More;
 use Test::TCP;
@@ -92,7 +93,9 @@ sub test_tcp_plackup {
         },
         server => sub {
             my $port = shift;
-            exec('plackup', '--port', $port, '-E', 'foo', '-e', $server);
+            my $runner = Plack::Runner->new(env => 'foo');
+            $runner->parse_options('--port', $port);
+            $runner->run($server);
         },
     )
 }

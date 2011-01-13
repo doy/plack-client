@@ -6,7 +6,9 @@ use Test::More;
 use Plack::Client::Test;
 
 test_tcp_plackup(
-    'sub { [ 200, ["Content-Type" => "text/plain"], [shift->{PATH_INFO}] ] }',
+    sub {
+        [ 200, ["Content-Type" => "text/plain"], [shift->{PATH_INFO}] ]
+    },
     sub {
         my $base_url = shift;
 
