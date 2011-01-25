@@ -243,11 +243,6 @@ sub _http_request_to_env {
         $req->uri->port(-1);
     }
 
-    # work around http::message::psgi bug - see github issue 163 for plack
-    if (!$req->uri->path) {
-        $req->uri->path('/');
-    }
-
     my $env = $req->to_psgi;
 
     # work around http::message::psgi bug - see github issue 150 for plack

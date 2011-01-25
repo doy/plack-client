@@ -130,7 +130,6 @@ sub test_responses {
         my $base = URI->new($base_uri);
         my $uri = $base->clone;
         $uri->scheme('http');
-        $uri->path('/') unless $uri->path; # XXX: work around plack bug
         my $env = HTTP::Request->new(GET => $uri)->to_psgi;
         $env->{CONTENT_LENGTH} = 0; # XXX: work around plack bug
         $env->{'plack.client.original_uri'} = $base;
@@ -146,7 +145,6 @@ sub test_responses {
         my $base = URI->new($base_uri);
         my $uri = $base->clone;
         $uri->scheme('http');
-        $uri->path('/') unless $uri->path; # XXX: work around plack bug
         my $env = HTTP::Request->new(GET => $uri)->to_psgi;
         $env->{CONTENT_LENGTH} = 0; # XXX: work around plack bug
         $env->{'plack.client.original_uri'} = $base;
