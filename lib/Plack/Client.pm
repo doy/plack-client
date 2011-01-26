@@ -245,9 +245,6 @@ sub _http_request_to_env {
 
     my $env = $req->to_psgi;
 
-    # work around http::message::psgi bug - see github issue 150 for plack
-    $env->{CONTENT_LENGTH} ||= length($req->content);
-
     $env->{'plack.client.original_uri'} = $original_uri;
 
     return $env;
