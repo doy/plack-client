@@ -54,6 +54,7 @@ sub app_from_request {
 
     my $uri = $req->uri->clone;
     $uri->path('/');
+    $uri->query(undef);
     $req->env->{'plack.proxy.remote'} = $uri->as_string;
     return $self->_proxy;
 }
