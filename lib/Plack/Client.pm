@@ -84,7 +84,7 @@ sub new {
     my %backends;
     for my $scheme (keys %params) {
         my $backend = $params{$scheme};
-        if ((blessed($backend) || '') eq 'Plack::Client::Backend') {
+        if (blessed($backend) && $backend->isa('Plack::Client::Backend')) {
             $backends{$scheme} = $backend->as_code;
         }
         elsif (reftype($backend) eq 'CODE') {
