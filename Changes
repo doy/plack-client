@@ -1,6 +1,8 @@
 Revision history for Plack-Client
 
 {{$NEXT}}
+
+0.04  2011-02-12
       - clear query args before proxying with the http backend (stevan)
       - a few other cleanups
 
