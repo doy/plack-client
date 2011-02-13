@@ -1,6 +1,8 @@
 Revision history for Plack-Client
 
 {{$NEXT}}
+      - clear query args before proxying with the http backend (stevan)
+      - a few other cleanups
 
 0.03  2011-01-12
       - refactor backends a bit more, and document them
