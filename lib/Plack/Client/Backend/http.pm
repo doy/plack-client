@@ -26,15 +26,33 @@ L<Plack::App::Proxy> to make the request.
 
 =method new
 
-Constructor. Takes no arguments.
+Constructor. Takes two optional arguments:
+
+=over 4
+
+=item proxy_args
+
+Hashref of arguments to pass to the L<Plack::App::Proxy> constructor.
+
+=item proxy
+
+L<Plack::App::Proxy> object to use for requests.
+
+=back
 
 =cut
 
 sub new {
     my $class = shift;
+    my %args = @_;
+
+    $args{proxy} ||= Plack::App::Proxy->new(
+        exists $args{proxy_args} ? $args{proxy_args} : ()
+    );
+
     my $self = $class->SUPER::new(@_);
 
-    $self->{proxy} = Plack::App::Proxy->new->to_app;
+    $self->{proxy} = $args{proxy}->to_app;
 
     return $self;
 }
