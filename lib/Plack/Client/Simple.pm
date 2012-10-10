@@ -5,18 +5,26 @@ use warnings;
 
 use Carp;
 use Plack::Client;
+use Plack::Util;
 use Scalar::Util qw(blessed reftype);
 use Plack::Client::Backend::psgi_local;
+use HTTP::Message::PSGI qw(res_from_psgi);
 
 =head1 SYNOPSIS
 
   use Plack::Client::Simple;
 
   $client = Plack::Client::Simple->new( sub { ... } );
-  $res = $client->get('/foo');
-
   $client = Plack::Client::Simple->new( 'http://example.org/' );,
+  $client = Plack::Client::Simple->new( $filename_of_psgi_script );
+
+  # get PSGI response
+  $res = $client->get('/foo');
   $res = $client->post('/', ['Content-Type' => 'text/plain'], "content");
+
+  # get HTTP::Response
+  $client = Plack::Client::Simple->new( $app, as => 'res' );
+  $res = $client->get('/foo');
 
 =head1 DESCRIPTION
 
@@ -28,32 +36,47 @@ remote web servers with a common request API borrowed from L<LWP::UserAgent>.
 =method new ( $app | $url )
 
 The constructor creates a client that either wraps a PSGI application, given as
-code reference, or a remote web application, given with its base URL. 
+code reference, as filename of a local PSGI script, or as remote web application,
+given with its base URL. 
 
 =cut
 
 sub new {
-    my ($class, $app) = @_;
+    my ($class, $app, %config) = @_;
 
     my %backend;
     my $baseurl;
 
     if (defined $app and !ref $app) {
-        $backend{http} = { };
-        $baseurl = $app;
-        $baseurl =~ s{/$}{};
-    } elsif( ref $app and reftype $app eq 'CODE' ) {
-        $backend{'psgi-local'} = Plack::Client::Backend::psgi_local->new(
-            apps => { myapp => $app }
-        );
-        $baseurl = 'psgi-local://myapp';
-    } else {
-        croak "PSGI application must be a coderef or URL";
+        if ($app =~ /^https?:/) {
+            $backend{http} = { };
+            $baseurl = $app;
+            $baseurl =~ s{/$}{};
+        } elsif ( -f $app ) {
+            $app = Plack::Util::load_psgi($app);
+        }
+    }
+
+    unless ($baseurl) {
+        if( ref $app and reftype $app eq 'CODE' ) {
+            $backend{'psgi-local'} = Plack::Client::Backend::psgi_local->new(
+                apps => { myapp => $app }
+            );
+            $baseurl = 'psgi-local://myapp';
+        } else {
+            croak "PSGI application must be a coderef, an URL, or a filename";
+        }
+    }
+
+    $config{as} //= 'psgi';
+    if ($config{as} !~ /^(psgi|res)$/) {
+        croak "option 'as' must be 'psgi' or 'res'";
     }
 
     bless {
         baseurl => $baseurl,
-        client  => Plack::Client->new( %backend )
+        client  => Plack::Client->new( %backend ),
+        as      => $config{as},
     }, $class;
 }
 
@@ -74,9 +97,10 @@ sub request {
     $url = $self->{baseurl} . $url;
 
     my $res = $self->{client}->request($method, $url, @_);
-    
-    # convert to PSGI response
-    return (blessed $res ? $res->finalize : $res);
+    $res = $res->finalize if blessed $res;
+
+    $res = res_from_psgi($res) if $self->{as} eq 'res';
+    return $res;
 }
 
 =method get
@@ -107,15 +131,3 @@ sub put    { shift->request('PUT',    @_) }
 sub delete { shift->request('DELETE', @_) }
 
 1;
-
-=head1 KNOWN BUGS
-
-This client does not set C<plack.client.original_uri>, so the request URI will
-always start with C<http://[plack::client]:-1/> when accessing local PSGI
-applications. A later version may support the following:
-
-  $client = Plack::Client::Simple->new( 'http://example.org/' => sub { ... } );
-  
-  $res->get('/foo'); # request http://example.org/foo by calling the $app
-
-=cut
